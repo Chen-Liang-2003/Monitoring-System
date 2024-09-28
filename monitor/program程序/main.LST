@@ -1,0 +1,385 @@
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 1   
+
+
+C51 COMPILER V9.59.0.0, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: E:\KEIL5\C51\BIN\C51.EXE main.c OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND TABS(2)
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #include <intrins.h> 
+   3          
+   4          #define uchar unsigned char   // 以后unsigned char就可以用uchar代替
+   5          #define uint  unsigned int    // 以后unsigned int 就可以用uint 代替
+   6          
+   7          sbit ADC_CS   = P1^2;         // ADC0832的CS引脚
+   8          sbit ADC_CLK = P1^1;        // ADC0832的CLK引脚
+   9          sbit ADC_DAT  = P1^0;         // ADC0832的DI/DO引脚
+  10          
+  11          sbit ADC_CS2   = P1^5;        // ADC0832的CS引脚
+  12          sbit ADC_CLK2 = P1^4;         // ADC0832的CLK引脚
+  13          sbit ADC_DAT2  = P1^3;        // ADC0832的DI/DO引脚
+  14          //LCD定义
+  15          #define LCD_DB P0 
+  16          sbit LCD_RS=P2^0;   
+  17          sbit LCD_RW=P2^1;  
+  18          sbit LCD_E=P2^2;  
+  19          sbit FMQ=P3^0;  
+  20          sbit K1=P3^5;  
+  21          sbit K2=P3^6;
+  22          bit up=1;
+  23          bit flag=1;
+  24          uint set=20;
+  25          uchar numR,numG,numB,num;   
+  26          /*-------------------------------------
+  27                   函数申明
+  28          ---------------------------------------*/
+  29          void LCD_init(void);                          //初始化函数 
+  30          void LCD_write_command(uchar command);        //写指令函数 
+  31          void LCD_write_data(uchar dat);               //写数据函数  
+  32          void LCD_disp_char(uchar x,uchar y,uchar dat);//在某个屏幕位置上显示一个字符,X（0-15),y(1-2)  
+  33          void LCD_disp_str(uchar x,uchar y,uchar *str); //LCD1602显示字符串函数 
+  34          void delay_n10us(uint n);                     //延时函数
+  35          /*-------------------------------------
+  36                   LCD1602子程序
+  37          ---------------------------------------*/
+  38          void LCD_init(void) 
+  39          {  
+  40   1        delay_n10us(10);  
+  41   1        LCD_write_command(0x38);//设置8位格式，2行，5x7 
+  42   1        delay_n10us(10);  LCD_write_command(0x0c);//开显示，关光标，不闪烁 
+  43   1        delay_n10us(10);  LCD_write_command(0x06);//设定输入方式，增量不移位 
+  44   1        delay_n10us(10);  LCD_write_command(0x01);//清除屏幕显示  
+  45   1        delay_n10us(100);       //延时清屏，延时函数，延时约n个10us 
+  46   1      }
+  47          
+  48          void LCD_write_command(uchar dat) 
+  49          {  
+  50   1        delay_n10us(10);  
+  51   1        LCD_RS=0;         //指令 
+  52   1        LCD_RW=0;         //写入 
+  53   1        LCD_E=1;          //允许 
+  54   1        LCD_DB=dat;  delay_n10us(10);  //实践证明，我的LCD1602上，用for循环1次就能完成普通写指令。 
+  55   1        LCD_E=0;  delay_n10us(10);  //实践证明，我的LCD1602上，用for循环1次就能完成普通写指令。 
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 2   
+
+  56   1      }
+  57          
+  58          void LCD_write_data(uchar dat) 
+  59          {  
+  60   1        delay_n10us(10);  
+  61   1        LCD_RS=1;          //数据 
+  62   1        LCD_RW=0;      //写入
+  63   1        LCD_E=1;           //允许 
+  64   1        LCD_DB=dat; delay_n10us(10);
+  65   1         LCD_E=0;  delay_n10us(10); 
+  66   1      }
+  67          
+  68          void LCD_disp_char(uchar x,uchar y,uchar dat) 
+  69          {    
+  70   1        uchar address;   
+  71   1        if(y==1)           
+  72   1        address=0x80+x;  
+  73   1        else           
+  74   1        address=0xc0+x;    
+  75   1        LCD_write_command(address);   
+  76   1        LCD_write_data(dat); 
+  77   1      }
+  78          
+  79          void LCD_disp_str(uchar x,uchar y,uchar *str) 
+  80          {    
+  81   1        uchar address;   
+  82   1        if(y==1)           
+  83   1        address=0x80+x;   
+  84   1        else           
+  85   1        address=0xc0+x;    
+  86   1        LCD_write_command(address);   
+  87   1        while(*str!='\0')   
+  88   1          {       
+  89   2          LCD_write_data(*str);
+  90   2          str++;
+  91   2          }
+  92   1      }
+  93          
+  94          void delay_n10us(uint n)  //延时 
+  95          {                 
+  96   1        uint i;                    
+  97   1        for(i=n;i>0;i--)            
+  98   1         {         
+  99   2         nop_();_nop_();_nop_();_nop_();_nop_();_nop_();    
+ 100   2         } 
+ 101   1      }
+ 102          
+ 103          
+ 104          
+ 105          
+ 106          
+ 107          
+ 108          /*********************************************************/
+ 109          // ADC0832的时钟脉冲
+ 110          /*********************************************************/
+ 111          void WavePlus()
+ 112          {
+ 113   1        _nop_();
+ 114   1        ADC_CLK = 1;
+ 115   1        _nop_();
+ 116   1        ADC_CLK = 0;
+ 117   1      }
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 3   
+
+ 118          
+ 119          
+ 120          
+ 121          /*********************************************************/
+ 122          // 获取指定通道的A/D转换结果
+ 123          /*********************************************************/
+ 124          uchar Get_ADC0832(uchar chanel)
+ 125          { 
+ 126   1        uchar i;
+ 127   1        uchar dat1=0;
+ 128   1        uchar dat2=0;
+ 129   1        
+ 130   1        ADC_CLK = 0;        // 电平初始化
+ 131   1        ADC_DAT = 1;
+ 132   1        _nop_();
+ 133   1        ADC_CS = 0;
+ 134   1        WavePlus();         // 起始信号 
+ 135   1        ADC_DAT = 1;
+ 136   1        WavePlus();         // 通道选择的第一位
+ 137   1        ADC_DAT = chanel;      
+ 138   1        WavePlus();         // 通道选择的第二位
+ 139   1        ADC_DAT = 1;
+ 140   1        
+ 141   1        for(i=0;i<8;i++)    // 第一次读取
+ 142   1        {
+ 143   2          dat1<<=1;
+ 144   2          WavePlus();
+ 145   2          if(ADC_DAT)
+ 146   2            dat1=dat1|0x01;
+ 147   2          else
+ 148   2            dat1=dat1|0x00;
+ 149   2        }
+ 150   1        
+ 151   1        for(i=0;i<8;i++)    // 第二次读取
+ 152   1        {
+ 153   2          dat2>>= 1;
+ 154   2          if(ADC_DAT)
+ 155   2            dat2=dat2|0x80;
+ 156   2          else
+ 157   2            dat2=dat2|0x00;
+ 158   2          WavePlus();
+ 159   2        }
+ 160   1        
+ 161   1        _nop_();            // 结束此次传输
+ 162   1        ADC_DAT = 1;
+ 163   1        ADC_CLK = 1;
+ 164   1        ADC_CS  = 1;   
+ 165   1      
+ 166   1        if(dat1==dat2)      // 返回采集结果
+ 167   1          return dat1;
+ 168   1        else
+ 169   1          return 0;
+ 170   1      } 
+ 171          
+ 172          
+ 173          
+ 174          
+ 175          
+ 176          
+ 177          
+ 178          
+ 179          /*********************************************************/
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 4   
+
+ 180          // ADC0832的时钟脉冲
+ 181          /*********************************************************/
+ 182          void WavePlus2()
+ 183          {
+ 184   1        _nop_();
+ 185   1        ADC_CLK2 = 1;
+ 186   1        _nop_();
+ 187   1        ADC_CLK2 = 0;
+ 188   1      }
+ 189          
+ 190          
+ 191          
+ 192          /*********************************************************/
+ 193          // 获取指定通道的A/D转换结果
+ 194          /*********************************************************/
+ 195          uchar Get_ADC08322(uchar chanel)
+ 196          { 
+ 197   1        uchar i;
+ 198   1        uchar dat1=0;
+ 199   1        uchar dat2=0;
+ 200   1        
+ 201   1        ADC_CLK2 = 0;       // 电平初始化
+ 202   1        ADC_DAT2 = 1;
+ 203   1        _nop_();
+ 204   1        ADC_CS2 = 0;
+ 205   1        WavePlus2();          // 起始信号 
+ 206   1        ADC_DAT2 = 1;
+ 207   1        WavePlus2();          // 通道选择的第一位
+ 208   1        ADC_DAT2 = chanel;      
+ 209   1        WavePlus2();          // 通道选择的第二位
+ 210   1        ADC_DAT2 = 1;
+ 211   1        
+ 212   1        for(i=0;i<8;i++)    // 第一次读取
+ 213   1        {
+ 214   2          dat1<<=1;
+ 215   2          WavePlus2();
+ 216   2          if(ADC_DAT2)
+ 217   2            dat1=dat1|0x01;
+ 218   2          else
+ 219   2            dat1=dat1|0x00;
+ 220   2        }
+ 221   1        
+ 222   1        for(i=0;i<8;i++)    // 第二次读取
+ 223   1        {
+ 224   2          dat2>>= 1;
+ 225   2          if(ADC_DAT2)
+ 226   2            dat2=dat2|0x80;
+ 227   2          else
+ 228   2            dat2=dat2|0x00;
+ 229   2          WavePlus2();
+ 230   2        }
+ 231   1        
+ 232   1        _nop_();            // 结束此次传输
+ 233   1        ADC_DAT2 = 1;
+ 234   1        ADC_CLK2 = 1;
+ 235   1        ADC_CS2  = 1;   
+ 236   1      
+ 237   1        if(dat1==dat2)      // 返回采集结果
+ 238   1          return dat1;
+ 239   1        else
+ 240   1          return 0;
+ 241   1      } 
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 5   
+
+ 242          
+ 243          
+ 244          
+ 245          
+ 246          void LCD() 
+ 247          {
+ 248   1        LCD_disp_char(1,1,numR/100+'0'); //显示 
+ 249   1        LCD_disp_char(2,1,numR/10%10+'0'); //显示 
+ 250   1        LCD_disp_char(3,1,numR%10+'0'); //显示
+ 251   1        
+ 252   1        LCD_disp_char(6,1,numG/100+'0'); //显示 
+ 253   1        LCD_disp_char(7,1,numG/10%10+'0'); //显示 
+ 254   1        LCD_disp_char(8,1,numG%10+'0'); //显示
+ 255   1        
+ 256   1        LCD_disp_char(11,1,numB/100+'0'); //显示 
+ 257   1        LCD_disp_char(12,1,numB/10%10+'0'); //显示 
+ 258   1        LCD_disp_char(13,1,numB%10+'0'); //显示
+ 259   1        
+ 260   1      
+ 261   1        LCD_disp_char(8,2,num/10+'0'); //显示 
+ 262   1        LCD_disp_char(9,2,num%10+'0'); //显示 
+ 263   1        
+ 264   1        
+ 265   1        LCD_disp_char(14,2,set/10+'0'); //显示 
+ 266   1        LCD_disp_char(15,2,set%10+'0'); //显示 
+ 267   1      }
+ 268          
+ 269          
+ 270          
+ 271          void key()
+ 272          {
+ 273   1        if(K1==0)
+ 274   1        {
+ 275   2          if(flag==1)
+ 276   2          {
+ 277   3            flag=0;
+ 278   3            if(set<99)
+ 279   3            {
+ 280   4              set++;
+ 281   4            }
+ 282   3          }
+ 283   2        }
+ 284   1        else if(K2==0)
+ 285   1        {
+ 286   2          if(flag==1)
+ 287   2          {
+ 288   3            flag=0;
+ 289   3            if(set>0)
+ 290   3            {
+ 291   4              set--;
+ 292   4            }
+ 293   3          }
+ 294   2        }
+ 295   1        else
+ 296   1        {
+ 297   2          flag=1;
+ 298   2        }
+ 299   1      }
+ 300          
+ 301          
+ 302          
+ 303          
+C51 COMPILER V9.59.0.0   MAIN                                                              07/18/2024 23:52:31 PAGE 6   
+
+ 304          /********************************************************
+ 305          主函数
+ 306          ********************************************************/
+ 307          void main(void)
+ 308          {
+ 309   1        LCD_init();//LCD初始化              
+ 310   1        LCD_disp_str(0,1,"R000 G000 B000 "); //显示 
+ 311   1        LCD_disp_str(0,2,"      n:00 s:00"); //显示 
+ 312   1        
+ 313   1        while(1)
+ 314   1        {
+ 315   2          numR=Get_ADC0832(0);      
+ 316   2          numG=Get_ADC0832(1);      
+ 317   2          numB=Get_ADC08322(0);           
+ 318   2          LCD();
+ 319   2          key();
+ 320   2          
+ 321   2          if(numR==255&&numG==255&&numB==255)
+ 322   2          {
+ 323   3            if(up==1)
+ 324   3            {
+ 325   4              up=0;
+ 326   4              LCD_disp_str(0,2,"White"); //显示 
+ 327   4              if(num<99)
+ 328   4              {
+ 329   5                num++;
+ 330   5              }
+ 331   4            }
+ 332   3          }
+ 333   2          else
+ 334   2          {
+ 335   3            up=1;
+ 336   3            LCD_disp_str(0,2,"     "); //显示 
+ 337   3          }
+ 338   2          
+ 339   2          if(num>=set)
+ 340   2          {
+ 341   3            FMQ=0;
+ 342   3          }
+ 343   2          else
+ 344   2          {
+ 345   3            FMQ=1;
+ 346   3          }
+ 347   2        }
+ 348   1      }
+ 349          
+ 350          
+ 351          
+ 352          
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    846    ----
+   CONSTANT SIZE    =     44    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =      6       8
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =      2    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
